@@ -63,7 +63,7 @@ func infixToRPN(infix string) (float64, error) {
 	if len(stringArray) == 1 {
 		oneNumber, _ := strconv.ParseFloat(stringArray[0], 64) // проверка на наличие только одного элемента в строке
 		if !(stringArray[0] >= "-1" && stringArray[0] <= "9") {
-			return oneNumber, fmt.Errorf("Ошибкаы, давай без этих, там, непонятных знаков")
+			return oneNumber, fmt.Errorf("Ошибкаsd, давай без этих, там, непонятных знаков")
 		}
 		return oneNumber, nil
 	}
