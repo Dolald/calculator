@@ -53,24 +53,30 @@ func changeAllStacks(stack []string, outPut []float64) ([]string, []float64, err
 	return stack, outPut, nil
 }
 
+func ifEnteredOneSymbol(stringArray []string) (float64, error) {
+	oneNumber, _ := strconv.ParseFloat(stringArray[0], 64) // проверка на наличие только одного элемента в строке
+	if !(stringArray[0] >= "-1" && stringArray[0] <= "9") {
+		return oneNumber, fmt.Errorf("ошибка, давай без этих, там, непонятных знаков")
+	}
+	return oneNumber, nil
+}
+
 func infixToRPN(infix string) (float64, error) {
+	stringArray := strings.Split(infix, " ")
 	err := checkForCorrectString(infix)
 	if err != nil {
 		fmt.Println(err)
 		return 0, fmt.Errorf(err.Error())
 	}
 
-	stringArray := strings.Split(infix, " ")
-
 	stack := []string{}
 	outPut := []float64{}
 
 	if len(stringArray) == 1 {
-		oneNumber, _ := strconv.ParseFloat(stringArray[0], 64) // проверка на наличие только одного элемента в строке
-		if !(stringArray[0] >= "-1" && stringArray[0] <= "9") {
-			return oneNumber, fmt.Errorf("ошибка, давай без этих, там, непонятных знаков")
+		oneNumber, err := ifEnteredOneSymbol(stringArray)
+		if err != nil {
+			fmt.Println(err)
 		}
-		return oneNumber, nil
 	}
 
 	for i, token := range stringArray {
