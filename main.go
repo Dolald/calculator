@@ -86,6 +86,15 @@ func infixToRPN(stringArray []string) (float64, error) {
 		}
 	}
 
+	outPut, err = lastOperateWithTwoOperands(outPut, stack)
+	if err != nil {
+		return 0, err
+	}
+
+	return outPut[0], nil
+}
+
+func lastOperateWithTwoOperands(outPut []float64, stack []string) ([]float64, error) {
 	leftNum, rightNum := outPut[len(outPut)-2], outPut[len(outPut)-1] // проводим операцию с последним арифметическим действием
 	top := stack[len(stack)-1]
 
@@ -98,14 +107,13 @@ func infixToRPN(stringArray []string) (float64, error) {
 		outPut[len(outPut)-2] = leftNum * rightNum
 	case top == "/":
 		if rightNum == 0 {
-			return outPut[0], fmt.Errorf("ошибка, нельзя делить на 0")
+			return outPut, fmt.Errorf("ошибка, нельзя делить на 0")
 		}
 		outPut[len(outPut)-2] = leftNum / rightNum
 	}
 
 	outPut = outPut[:len(outPut)-1]
-
-	return outPut[0], nil
+	return outPut, nil
 }
 
 func OperateBeforeRemovingAllParenthesises(stringArray []string, stack []string, outPut []float64, err error) ([]string, []float64, error) {
@@ -161,7 +169,7 @@ func ifLastOperationIsGreaterThanCurrentOrEqual(stack []string, token string) bo
 
 func operationWithOpenParenthesis(stack []string, outPut []float64) ([]string, []float64, error) {
 	for i := range stack {
-		if doesExistOperationBeforeOpenParenthesis(stack, i) { // если после "(" есть хотя бы одна операция, продолжаем
+		if ifExistOperationBeforeOpenParenthesis(stack, i) { // если после "(" есть хотя бы одна операция, продолжаем
 			for stack[len(stack)-1] != "(" {
 				stack, outPut, _ = changeAllStacks(stack, outPut)
 			}
@@ -174,9 +182,7 @@ func operationWithOpenParenthesis(stack []string, outPut []float64) ([]string, [
 	return stack, outPut, nil
 }
 
-func doesExistOperationBeforeOpenParenthesis(stack []string, i int) bool {
-	// if stack[i] == "(" && i != len(stack)-1 { // если после "(" есть хотя бы одна операция, продолжаем
-	// 	return true
+func ifExistOperationBeforeOpenParenthesis(stack []string, i int) bool {
 	if stack[i] == "(" && i == len(stack)-1 {
 		return false
 	}
@@ -194,6 +200,12 @@ func checkForCorrectString(enterString string) error {
 
 	for i := 0; i < len(enterString); i++ { // количество операций
 
+		if enterString[len(enterString)-1] == byte(enterString[i]) { // проверка на последний символ
+			if !(enterString[i] >= '0' && enterString[i] <= '9') && enterString[i] != ')' {
+				return fmt.Errorf("ошибка, вы ввели не верный последний символ")
+			}
+		}
+
 		switch enterString[i] {
 		case '+', '-', '*', '/', '(', ')': // подсчёт количества операций, исключая случай, когда самый первый элемент "-"
 			countOperations++
@@ -203,12 +215,6 @@ func checkForCorrectString(enterString string) error {
 			if i == 0 && enterString[i] == '-' && enterString[i+1] == '(' { // исключительный случай
 				countOperations++
 				countSpaces++
-			}
-		}
-
-		if enterString[len(enterString)-1] == byte(enterString[i]) { // проверка на последний символ
-			if !(enterString[i] >= '0' && enterString[i] <= '9') && enterString[i] != ')' {
-				return fmt.Errorf("ошибка, вы ввели не верный последний символ")
 			}
 		}
 
