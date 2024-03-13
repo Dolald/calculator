@@ -61,71 +61,22 @@ func ifEnteredOneSymbol(stringArray []string) (float64, error) {
 	return oneNumber, nil
 }
 
-func infixToRPN(infix string) (float64, error) {
-	stringArray := strings.Split(infix, " ")
-	err := checkForCorrectString(infix)
-	if err != nil {
-		fmt.Println(err)
-		return 0, fmt.Errorf(err.Error())
-	}
-
+func infixToRPN(stringArray []string) (float64, error) {
+	var err error
 	stack := []string{}
 	outPut := []float64{}
 
 	if len(stringArray) == 1 {
 		oneNumber, err := ifEnteredOneSymbol(stringArray)
 		if err != nil {
-			fmt.Println(err)
+			return 0, err
 		}
+		return oneNumber, nil
 	}
 
-	for i, token := range stringArray {
-
-		if token == ")" {
-
-			for i := range stack {
-
-				if stack[i] == "(" && i != len(stack)-1 { // если после "(" есть хотя бы одна операция, продолжаем
-					for stack[len(stack)-1] != "(" {
-						stack, outPut, _ = changeAllStacks(stack, outPut)
-					}
-					break
-				} else if stack[i] == "(" && i == len(stack)-1 {
-					return 0, fmt.Errorf("Ошибка")
-				}
-			}
-			stack = stack[:len(stack)-1] // убираем "(" из стека и продолжаем дальше
-		}
-
-		if token == "(" {
-			stack = append(stack, "(")
-		}
-
-		if isOperator(token) { // если токен операция, проверяем дальше
-
-			// если прошлая операция больше, чем текущая или они равны 2, то есть * * или * / и тд - проводим предыдущую операцию
-			if len(stack) > 0 && ((getPriority(stack[len(stack)-1]) > getPriority(token)) || (getPriority(stack[len(stack)-1]) == 2 && getPriority(token) == 2)) {
-				stack, outPut, err = changeAllStacks(stack, outPut)
-				if err != nil {
-					return 0, err
-				}
-			}
-
-			stack = append(stack, token)
-
-			if token == "-" && i == 0 { // исключительный случай, когда первый элемент стека "-" и outPut пустой, значит следущий элемент - "("
-				outPut = append(outPut, 0)
-			}
-
-		} else if !isOperator(token) && token != ")" && token != "(" {
-
-			newToken, err := strconv.ParseFloat(token, 64) // если не операция, а операнда - заносим в стек
-			if err != nil {
-				return 0, fmt.Errorf("ошибка")
-			}
-
-			outPut = append(outPut, newToken)
-		}
+	stack, outPut, err = OperateBeforeRemovingAllParenthesises(stringArray, stack, outPut, err)
+	if err != nil {
+		return 0, err
 	}
 
 	for len(outPut) != 2 { // проводим операции до тех пор, пока в outPut не останется 2 операнда
@@ -135,14 +86,14 @@ func infixToRPN(infix string) (float64, error) {
 		}
 	}
 
-	leftNum, rightNum := (outPut)[len(outPut)-2], (outPut)[len(outPut)-1] // проводим операцию с последним арифметическим действием
+	leftNum, rightNum := outPut[len(outPut)-2], outPut[len(outPut)-1] // проводим операцию с последним арифметическим действием
 	top := stack[len(stack)-1]
 
 	switch {
 	case top == "+":
-		(outPut)[len(outPut)-2] = leftNum + rightNum
+		outPut[len(outPut)-2] = leftNum + rightNum
 	case top == "-":
-		(outPut)[len(outPut)-2] = leftNum - rightNum
+		outPut[len(outPut)-2] = leftNum - rightNum
 	case top == "*":
 		outPut[len(outPut)-2] = leftNum * rightNum
 	case top == "/":
@@ -157,7 +108,80 @@ func infixToRPN(infix string) (float64, error) {
 	return outPut[0], nil
 }
 
-///////////////////////////////////////////////////////////////////////////////////
+func OperateBeforeRemovingAllParenthesises(stringArray []string, stack []string, outPut []float64, err error) ([]string, []float64, error) {
+	for i, token := range stringArray {
+
+		if token == ")" {
+			stack, outPut, err = operationWithOpenParenthesis(stack, outPut)
+			if err != nil {
+				return stack, outPut, err
+			}
+		}
+
+		if token == "(" {
+			stack = append(stack, "(")
+		}
+
+		if isOperator(token) {
+			if ifLastOperationIsGreaterThanCurrentOrEqual(stack, token) {
+				stack, outPut, err = changeAllStacks(stack, outPut)
+				if err != nil {
+					return stack, outPut, err
+				}
+			}
+
+			stack = append(stack, token)
+
+			if token == "-" && i == 0 { // исключительный случай, когда первый элемент стека "-" и outPut пустой, значит следущий элемент - "("
+				outPut = append(outPut, 0)
+			}
+
+		} else if !isOperator(token) && token != ")" && token != "(" {
+			outPut, err = appendOutPutStack(outPut, token)
+			if err != nil {
+				return stack, outPut, err
+			}
+		}
+	}
+	return stack, outPut, nil
+}
+
+func appendOutPutStack(outPut []float64, token string) ([]float64, error) {
+	newToken, err := strconv.ParseFloat(token, 64)
+	if err != nil {
+		return outPut, fmt.Errorf("ошибка")
+	}
+	outPut = append(outPut, newToken)
+	return outPut, err
+}
+
+func ifLastOperationIsGreaterThanCurrentOrEqual(stack []string, token string) bool {
+	return len(stack) > 0 && ((getPriority(stack[len(stack)-1]) > getPriority(token)) || (getPriority(stack[len(stack)-1]) == 2 && getPriority(token) == 2))
+}
+
+func operationWithOpenParenthesis(stack []string, outPut []float64) ([]string, []float64, error) {
+	for i := range stack {
+		if doesExistOperationBeforeOpenParenthesis(stack, i) { // если после "(" есть хотя бы одна операция, продолжаем
+			for stack[len(stack)-1] != "(" {
+				stack, outPut, _ = changeAllStacks(stack, outPut)
+			}
+			break
+		} else {
+			return stack, outPut, fmt.Errorf("Ошибка")
+		}
+	}
+	stack = stack[:len(stack)-1] // убираем "(" из стека и продолжаем дальше
+	return stack, outPut, nil
+}
+
+func doesExistOperationBeforeOpenParenthesis(stack []string, i int) bool {
+	// if stack[i] == "(" && i != len(stack)-1 { // если после "(" есть хотя бы одна операция, продолжаем
+	// 	return true
+	if stack[i] == "(" && i == len(stack)-1 {
+		return false
+	}
+	return true
+}
 
 func checkForCorrectString(enterString string) error {
 	bracketStack := make([]rune, 0)
@@ -251,11 +275,16 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Введите строку: ")
 	enterString, _ := reader.ReadString('\n')
+	enterString = enterString[:len(enterString)-1] // Удаление символа новой строки из строки
 
-	// Удаление символа новой строки из строки
-	enterString = enterString[:len(enterString)-1]
+	err := checkForCorrectString(enterString)
+	if err != nil {
+		fmt.Errorf(err.Error())
+	}
 
-	result, err := infixToRPN(enterString)
+	stringArray := strings.Split(enterString, " ")
+
+	result, err := infixToRPN(stringArray)
 	if err != nil {
 		fmt.Println(err)
 		return
